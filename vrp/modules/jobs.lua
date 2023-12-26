@@ -1,5 +1,11 @@
+--[[
+    -- sql
+    'job' varchar(100)
+    'jobSkills' longtext
+]]
+
 local config = {
-    maxExp = 100
+    maxExp = 100,
     maxLevel = 5     
 }
 
@@ -68,12 +74,50 @@ function vRP.getPlayerJob(user_id)
     return "Somer"
 end
 
+function vRP.getPlayerJobLevel(user_id)
+    local playerJob = vRP.getPlayerJob(user_id)
+    if playerCache[user_id] then
+        return playerCache[user_id].jobSkills[playerJob].level
+    end
+    return 0
+end
+
+function vRP.addExperienceToJob(user_id, job, exp)
+    if playerCache[user_id] then
+        if playerCache[user_id].jobSkills[job] then
+            if playerCache[user_id].jobSkills[job].level >= config.maxLevel then
+                return
+            end
+
+            Citizen.SetTimeout(50, function()
+                if playerCache[user_id].jobSkills[job].experience >= config.maxExp then
+                    playerCache[user_id].jobSkills[job].level = playerCache[user_id].jobSkills[job].level + 1
+                    if playerCache[user_id].jobSkills[job].level >= config.maxLevel then
+                        playerCache[user_id].jobSkills[job].level = config.maxLevel
+                        vRPclient.notify(vRP.getUserSource(user_id), {"Congrats, you achieve the max level of this job ("..playerCache[user_id].jobSkills[job].level.."/"..config.maxLevel..")."})
+                    end
+                    playerCache[user_id].jobSkills[job].experience = 0
+                    exports.oxmysql:query("UPDATE vrp_users SET jobSkills = @jobSkills WHERE id = @user_id", {["@jobSkills"] = json.encode(playerCache[user_id].jobSkills), ["@user_id"] = user_id})
+                else
+                    playerCache[user_id].jobSkills[job].experience = playerCache[user_id].jobSkills[job].experience + exp
+                    exports.oxmysql:query("UPDATE vrp_users SET jobSkills = @jobSkills WHERE id = @user_id", {["@jobSkills"] = json.encode(playerCache[user_id].jobSkills), ["@user_id"] = user_id})
+                end
+            end)
+        end
+    end
+end
+
+function vRP.getPlayerJobExp(user_id)
+    local playerJob = vRP.getPlayerJob(user_id)
+    if playerCache[user_id] then
+        return playerCache[user_id].jobSkills[playerJob].experience
+    end
+    return 0
+end
+
 AddEventHandler("vRP:playerSpawn", function(user_id, player, first_spawn)
     exports.oxmysql:query("SELECT job FROM vrp_users WHERE id = @user_id", {["@user_id"] = user_id}, function(rows)
-        local playerJob = tostring(rows[1].job)
-        if playerJob then
-            vRP.setPlayerJob(user_id, playerJob)
-        end
+        vRP.setPlayerJob(user_id, tostring(rows[1].job))
     end)
 end)
 
@@ -83,12 +127,4 @@ AddEventHandler("vRP:playerLeave", function(user_id, player)
     end
 
     playerCache[user_id] = nil
-end)
-
-RegisterCommand("test1", function(source)
-    vRP.setPlayerJob(vRP.getUserId(source), "Bucatar")
-end)
-
-RegisterCommand("test2", function(source)
-    vRP.setPlayerJob(vRP.getUserId(source), "Maturator")
 end)
