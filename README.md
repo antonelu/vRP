@@ -1,3 +1,2 @@
 # vRP
-> My script collection for the FiveM (Grand Theft Auto V Mod), for the vRP framework.
-> some of scripts it is not finished, you can feel free to modify.
+> My script collection for FiveM (Grand Theft Auto V Mod) using the vRP framework. Some of the scripts are not finished, feel free to modify them.
